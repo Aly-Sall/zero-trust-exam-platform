@@ -7,23 +7,24 @@ export default function Calibration() {
   const [text, setText] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isCalibrated, setIsCalibrated] = useState(false);
-  const [metrics, setMetrics] = useState(null); // Pour afficher les stats à l'étudiant
+  const [metrics, setMetrics] = useState(null); // To display stats to the student
 
   const navigate = useNavigate();
   const { handleKeyDown, handleKeyUp, getKeystrokeData, clearKeystrokeData } =
     useKeystrokeDynamics();
 
-  const referenceSentence = "La sécurité Zero-Trust est essentielle.";
+  // English reference sentence for the jury
+  const referenceSentence = "Zero-Trust security is essential.";
 
   const handleTextChange = (e) => {
     setText(e.target.value);
   };
 
   const submitCalibration = async () => {
-    // 1. Vérification de base : l'étudiant a-t-il bien recopié la phrase ?
+    // 1. Basic validation: Did the student type the sentence correctly?
     if (text !== referenceSentence) {
       setStatusMessage(
-        "⚠️ Veuillez taper la phrase exactement comme demandée (avec les majuscules et le point final).",
+        "⚠️ Please type the sentence exactly as shown (respecting case and the final period).",
       );
       return;
     }
@@ -31,9 +32,9 @@ export default function Calibration() {
     const data = getKeystrokeData();
 
     try {
-      setStatusMessage("⏳ Calcul de votre signature biométrique en cours...");
+      setStatusMessage("⏳ Calculating your biometric signature...");
 
-      // 2. Envoi des données de frappe au backend pour calculer la Baseline
+      // 2. Send keystroke data to the backend to calculate the Baseline
       const response = await api.post("/Biometrics/calibrate", data);
 
       setIsCalibrated(true);
@@ -43,9 +44,9 @@ export default function Calibration() {
       });
       setStatusMessage("✅ " + response.data.message);
     } catch (err) {
-      console.error("Erreur de calibration :", err);
+      console.error("Calibration Error:", err);
       setStatusMessage(
-        "❌ Erreur lors de l'enregistrement. Êtes-vous bien connecté ?",
+        "❌ Error during recording. Are you connected to the server?",
       );
     }
   };
@@ -60,11 +61,11 @@ export default function Calibration() {
     <div className="min-h-screen flex flex-col items-center justify-center p-8 text-white relative">
       <div className="w-full max-w-2xl bg-white/5 p-8 rounded-xl border border-gray-700 shadow-2xl">
         <h1 className="text-3xl font-bold mb-2 text-secureAccent">
-          Enrôlement Biométrique
+          Biometric Enrollment
         </h1>
         <p className="text-gray-400 mb-6">
-          Avant d'accéder à l'examen, nous devons créer votre profil de frappe
-          au clavier. Tapez la phrase ci-dessous à votre rythme naturel.
+          Before accessing the exam, we need to create your typing profile.
+          Please type the sentence below at your natural typing speed.
         </p>
 
         <div className="bg-black/40 p-4 rounded text-center text-xl font-mono mb-6 border border-gray-600 select-none">
@@ -78,8 +79,8 @@ export default function Calibration() {
           onKeyUp={handleKeyUp}
           disabled={isCalibrated}
           className="w-full h-24 bg-gray-900 border border-gray-600 rounded p-4 text-white focus:outline-none focus:border-secureAccent resize-none mb-4"
-          placeholder="Tapez la phrase ici..."
-          onPaste={(e) => e.preventDefault()} // On bloque le copier-coller évidemment !
+          placeholder="Type the sentence here..."
+          onPaste={(e) => e.preventDefault()} // Copy-paste is forbidden here too!
         ></textarea>
 
         {statusMessage && (
@@ -90,17 +91,17 @@ export default function Calibration() {
           </div>
         )}
 
-        {/* Affichage des métriques Data Science calculées par l'API */}
+        {/* Displaying Data Science metrics calculated by the API */}
         {metrics && (
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-800 p-4 rounded text-center">
-              <div className="text-gray-400 text-sm">Dwell Time (Moyenne)</div>
+              <div className="text-gray-400 text-sm">Mean Dwell Time</div>
               <div className="text-xl font-bold font-mono text-secureAccent">
                 {metrics.dwell.toFixed(2)} ms
               </div>
             </div>
             <div className="bg-gray-800 p-4 rounded text-center">
-              <div className="text-gray-400 text-sm">Flight Time (Moyenne)</div>
+              <div className="text-gray-400 text-sm">Mean Flight Time</div>
               <div className="text-xl font-bold font-mono text-secureAccent">
                 {metrics.flight.toFixed(2)} ms
               </div>
@@ -115,13 +116,13 @@ export default function Calibration() {
                 onClick={resetTyping}
                 className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
               >
-                Recommencer
+                Restart
               </button>
               <button
                 onClick={submitCalibration}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-500 font-bold rounded shadow transition-colors"
               >
-                Enregistrer ma signature
+                Save My Signature
               </button>
             </>
           ) : (
@@ -129,7 +130,7 @@ export default function Calibration() {
               onClick={() => navigate("/exam")}
               className="w-full py-3 bg-secureAccent hover:bg-emerald-400 text-gray-900 font-bold rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105"
             >
-              Poursuivre vers l'Examen ➔
+              Proceed to Exam ➔
             </button>
           )}
         </div>

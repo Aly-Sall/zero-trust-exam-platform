@@ -1,0 +1,224 @@
+import { useState, useEffect } from "react";
+
+export default function AdminDashboard() {
+  const [users, setUsers] = useState([]);
+  const [csvFile, setCsvFile] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  
+  const [formData, setFormData] = useState({ 
+    email: "", 
+    passwordHash: "", 
+    role: "Student",
+    cohort: "Cybersecurity-MSc" 
+  });
+
+  // 1. Fetch Users
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("http://localhost:5162/api/users");
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  // 2. Manual Provisioning (Add User)
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch("http://localhost:5162/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        alert("User provisioned successfully! Credentials emailed.");
+        setFormData({ ...formData, email: "", passwordHash: "" }); 
+        fetchUsers(); 
+      } else {
+        const error = await response.json();
+        alert(error.message || "Failed to create user.");
+      }
+    } catch (error) {
+      alert("Database connection error.");
+    }
+  };
+
+  // 3. Edit User (Update) - Fixed to prevent 400 Bad Request
+ const handleUpdate = async (e) => {
+  e.preventDefault();
+  
+  try {
+    const res = await fetch(`http://localhost:5162/api/users/${editingUser.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingUser.id,
+        email: editingUser.email,
+        role: editingUser.role,
+        cohort: editingUser.cohort,
+        // We send null so the backend knows NOT to change the existing password
+        passwordHash: null 
+      }),
+    });
+
+    if (res.ok) {
+      setEditingUser(null);
+      fetchUsers();
+      console.log("Update successful!");
+    } else {
+      const errorData = await res.json();
+      alert("Error: " + JSON.stringify(errorData.errors || errorData.message));
+    }
+  } catch (err) {
+    console.error("Connection Error:", err);
+  }
+};
+
+  // 4. Delete User
+  const deleteUser = async (id) => {
+    if (!window.confirm("PERMANENT ACTION: Revoke access for this user?")) return;
+    try {
+      const response = await fetch(`http://localhost:5162/api/users/${id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setUsers(users.filter((user) => user.id !== id));
+      } else {
+        alert("Failed to delete user.");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+    }
+  };
+
+  // 5. Bulk CSV Upload
+  const handleCsvUpload = async (e) => {
+    e.preventDefault();
+    if (!csvFile) return alert("Select a CSV file.");
+    
+    const uploadData = new FormData();
+    uploadData.append("file", csvFile);
+
+    try {
+      const response = await fetch("http://localhost:5162/api/users/bulk", {
+        method: "POST",
+        body: uploadData, 
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Success! Imported ${result.count} users.`);
+        setCsvFile(null);
+        fetchUsers();
+      } else {
+        alert("CSV Processing failed.");
+      }
+    } catch (error) {
+      alert("Error uploading file.");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0d1117] p-8 text-white font-sans">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="border-b border-gray-800 pb-6">
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <span className="text-blue-500">🛡️</span> System Administration
+          </h1>
+          <p className="text-gray-400 mt-2">Zero-Trust Identity & Access Management</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-6">
+            {/* CSV Tool */}
+            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-6 shadow-xl">
+              <h2 className="text-lg font-bold mb-4 text-purple-400 border-b border-gray-800 pb-2">Bulk Import (CSV)</h2>
+              <form onSubmit={handleCsvUpload} className="space-y-4">
+                <input type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files[0])} className="w-full text-sm text-gray-400 file:bg-purple-600 file:text-white file:border-0 file:rounded file:px-4 file:py-2" />
+                <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 py-2 rounded font-bold">Upload Roster</button>
+              </form>
+            </div>
+
+            {/* Manual Tool */}
+            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-6 shadow-xl">
+              <h2 className="text-lg font-bold mb-4 text-green-400 border-b border-gray-800 pb-2">Manual Provisioning</h2>
+              <form onSubmit={handleManualSubmit} className="space-y-4">
+                <input type="email" placeholder="Email" required className="w-full bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                <input type="text" placeholder="Temp Password" required className="w-full bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.passwordHash} onChange={(e) => setFormData({...formData, passwordHash: e.target.value})} />
+                <div className="flex gap-2">
+                  <select className="flex-1 bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
+                    <option value="Student">Student</option>
+                    <option value="Professor">Professor</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                  <input type="text" placeholder="Cohort" className="flex-1 bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.cohort} onChange={(e) => setFormData({...formData, cohort: e.target.value})} />
+                </div>
+                <button type="submit" className="w-full bg-green-600 hover:bg-green-500 py-2 rounded font-bold">Execute Provisioning</button>
+              </form>
+            </div>
+          </div>
+
+          {/* User Table */}
+          <div className="lg:col-span-2 bg-[#161b22] border border-gray-800 rounded-xl p-6 shadow-xl">
+            <h2 className="text-xl font-bold mb-4 text-blue-400 border-b border-gray-800 pb-2">Active Directory</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-gray-500 text-sm border-b border-gray-800">
+                    <th className="p-3">Email</th>
+                    <th className="p-3">Cohort</th>
+                    <th className="p-3">Clearance</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-800/40">
+                      <td className="p-3 text-sm">{user.email}</td>
+                      <td className="p-3 text-sm text-gray-400">{user.cohort || "N/A"}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${user.role === 'Admin' ? 'border-red-500 text-red-500' : user.role === 'Professor' ? 'border-blue-500 text-blue-500' : 'border-green-500 text-green-500'}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right space-x-3">
+                        <button onClick={() => setEditingUser(user)} className="text-blue-400 hover:underline text-sm">Edit</button>
+                        <button onClick={() => deleteUser(user.id)} className="text-red-400 hover:underline text-sm">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] backdrop-blur-sm">
+          <div className="bg-[#161b22] border border-gray-700 p-8 rounded-xl max-w-md w-full">
+            <h2 className="text-xl font-bold mb-6 text-blue-400">Update Profile</h2>
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <input className="w-full bg-[#0d1117] border border-gray-700 p-2 rounded" value={editingUser.email} onChange={(e) => setEditingUser({...editingUser, email: e.target.value})} />
+              <input className="w-full bg-[#0d1117] border border-gray-700 p-2 rounded" value={editingUser.cohort || ""} onChange={(e) => setEditingUser({...editingUser, cohort: e.target.value})} />
+              <div className="flex gap-4">
+                <button type="submit" className="flex-1 bg-blue-600 py-2 rounded">Save</button>
+                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 bg-gray-800 py-2 rounded">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

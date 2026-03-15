@@ -11,6 +11,7 @@ namespace SecureExam.API.Data
         public DbSet<BaselineSignature> BaselineSignatures { get; set; }
         public DbSet<ExamSession> ExamSessions { get; set; }
         public DbSet<IntegrityAlert> IntegrityAlerts { get; set; }
+        public DbSet<Exam> Exams { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -81,6 +81,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddScoped<SecureExam.API.Services.IEmailService, SecureExam.API.Services.EmailService>();
 // 2. Construction de l'application
 var app = builder.Build();
 
@@ -101,5 +102,4 @@ app.UseAuthorization();  // Vérifie les DROITS de l'utilisateur
 
 app.MapControllers();
 app.MapHub<MonitoringHub>("/monitoringHub"); // NOUVEAU : L'URL où le front va se connecter
-
 app.Run();

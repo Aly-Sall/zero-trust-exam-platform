@@ -68,7 +68,7 @@ export default function ProfessorDashboard() {
             <div>Anomaly Score (Z-Score)</div>
           </div>
 
-          <div className="divide-y divide-gray-700/50 max-h-[600px] overflow-y-auto">
+          <div className="divide-y divide-gray-700/50 max-h-[600] overflow-y-auto">
             {alerts.length === 0 ? (
               <div className="p-8 text-center text-gray-500 italic">
                 No incidents detected. Sessions are secure.

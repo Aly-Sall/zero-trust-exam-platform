@@ -110,7 +110,7 @@ export default function ProfessorDashboard() {
           </div>
         </div>
 
-        {/* NEW: GRID LAYOUT (Alerts on Left, Calendar on Right) */}
+        {/* GRID LAYOUT (Alerts on Left, Calendar on Right) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* ALERTS TABLE SECTION (Takes 2 Columns) */}
@@ -121,7 +121,7 @@ export default function ProfessorDashboard() {
               <div>Alert Type</div>
               <div>Anomaly Score (Z-Score)</div>
             </div>
-
+            
             <div className="divide-y divide-gray-700/50 max-h-[600px] overflow-y-auto flex-grow">
               {alerts.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 italic mt-10">
@@ -154,7 +154,6 @@ export default function ProfessorDashboard() {
           </div>
 
         </div>
-        
       </div>
         
       {/* The Scheduling Modal */}

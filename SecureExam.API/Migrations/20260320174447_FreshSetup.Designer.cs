@@ -11,8 +11,8 @@ using SecureExam.API.Data;
 namespace SecureExam.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260305070953_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260320174447_FreshSetup")]
+    partial class FreshSetup
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -45,6 +45,31 @@ namespace SecureExam.API.Migrations
                         .IsUnique();
 
                     b.ToTable("BaselineSignatures");
+                });
+
+            modelBuilder.Entity("SecureExam.API.Models.Exam", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AccessCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Duration")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Exams");
                 });
 
             modelBuilder.Entity("SecureExam.API.Models.ExamSession", b =>
@@ -103,6 +128,9 @@ namespace SecureExam.API.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Cohort")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
                         .IsRequired()

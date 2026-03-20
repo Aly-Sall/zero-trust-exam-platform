@@ -52,7 +52,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // 3. Edit User (Update) - Fixed to prevent 400 Bad Request
+  // 3. Edit User (Update) - FIXED WITH EMPTY STRING
  const handleUpdate = async (e) => {
   e.preventDefault();
   
@@ -65,8 +65,8 @@ export default function AdminDashboard() {
         email: editingUser.email,
         role: editingUser.role,
         cohort: editingUser.cohort,
-        // We send null so the backend knows NOT to change the existing password
-        passwordHash: null 
+        // The empty string tricks the ASP.NET bouncer!
+        passwordHash: "" 
       }),
     });
 
@@ -181,21 +181,29 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-800/40">
-                      <td className="p-3 text-sm">{user.email}</td>
-                      <td className="p-3 text-sm text-gray-400">{user.cohort || "N/A"}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${user.role === 'Admin' ? 'border-red-500 text-red-500' : user.role === 'Professor' ? 'border-blue-500 text-blue-500' : 'border-green-500 text-green-500'}`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right space-x-3">
-                        <button onClick={() => setEditingUser(user)} className="text-blue-400 hover:underline text-sm">Edit</button>
-                        <button onClick={() => deleteUser(user.id)} className="text-red-400 hover:underline text-sm">Delete</button>
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="p-8 text-center text-gray-500 italic">
+                        Database is clean. Create your first user!
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    users.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-800/40">
+                        <td className="p-3 text-sm">{user.email}</td>
+                        <td className="p-3 text-sm text-gray-400">{user.cohort || "N/A"}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${user.role === 'Admin' ? 'border-red-500 text-red-500' : user.role === 'Professor' ? 'border-blue-500 text-blue-500' : 'border-green-500 text-green-500'}`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right space-x-3">
+                          <button onClick={() => setEditingUser(user)} className="text-blue-400 hover:underline text-sm">Edit</button>
+                          <button onClick={() => deleteUser(user.id)} className="text-red-400 hover:underline text-sm">Delete</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -206,15 +214,65 @@ export default function AdminDashboard() {
       {/* Edit Modal */}
       {editingUser && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] backdrop-blur-sm">
-          <div className="bg-[#161b22] border border-gray-700 p-8 rounded-xl max-w-md w-full">
-            <h2 className="text-xl font-bold mb-6 text-blue-400">Update Profile</h2>
-            <form onSubmit={handleUpdate} className="space-y-4">
-              <input className="w-full bg-[#0d1117] border border-gray-700 p-2 rounded" value={editingUser.email} onChange={(e) => setEditingUser({...editingUser, email: e.target.value})} />
-              <input className="w-full bg-[#0d1117] border border-gray-700 p-2 rounded" value={editingUser.cohort || ""} onChange={(e) => setEditingUser({...editingUser, cohort: e.target.value})} />
-              <div className="flex gap-4">
-                <button type="submit" className="flex-1 bg-blue-600 py-2 rounded">Save</button>
-                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 bg-gray-800 py-2 rounded">Cancel</button>
+          <div className="bg-[#161b22] border border-gray-700 p-8 rounded-xl max-w-md w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-2xl">👤</span>
+              <h2 className="text-xl font-bold text-blue-400">Update User Access</h2>
+            </div>
+            
+            <form onSubmit={handleUpdate} className="space-y-5">
+              
+              <div>
+                <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Identify (Email)</label>
+                <input 
+                  className="w-full bg-[#0d1117] border border-gray-800 p-2.5 rounded mt-1 focus:border-blue-500 outline-none transition-all" 
+                  value={editingUser.email} 
+                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})} 
+                />
               </div>
+
+              <div>
+                <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Classification (Cohort)</label>
+                <input 
+                  className="w-full bg-[#0d1117] border border-gray-800 p-2.5 rounded mt-1 focus:border-blue-500 outline-none transition-all" 
+                  value={editingUser.cohort || ""} 
+                  onChange={(e) => setEditingUser({...editingUser, cohort: e.target.value})} 
+                />
+              </div>
+
+              {/* PASSWORD OVERWRITE SECTION */}
+              <div className="pt-2">
+                <label className="text-[10px] text-red-500 uppercase font-black tracking-widest">Credential Reset (Optional)</label>
+                <div className="relative mt-1">
+                  <input 
+                    type="text" 
+                    placeholder="Enter new password to overwrite..." 
+                    className="w-full bg-[#1c1111] border border-red-900/30 focus:border-red-600 p-2.5 rounded text-sm placeholder-gray-700 outline-none transition-all" 
+                    value={editingUser.newPassword || ""} 
+                    onChange={(e) => setEditingUser({...editingUser, newPassword: e.target.value})} 
+                  />
+                  <div className="text-[9px] text-gray-500 mt-1.5 italic">
+                    * Leave blank to keep the current encrypted password active.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 py-2.5 rounded font-bold shadow-lg transition-all active:scale-95"
+                >
+                  Save Changes
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setEditingUser(null)} 
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 py-2.5 rounded font-bold transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+
             </form>
           </div>
         </div>

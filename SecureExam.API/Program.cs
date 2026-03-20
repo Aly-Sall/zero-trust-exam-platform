@@ -6,6 +6,7 @@ using SecureExam.API.Data;
 using SecureExam.API.Hubs;
 using SecureExam.API.Services;
 using System.Text;
+using SecureExam.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddControllers();
 builder.Services.AddSignalR(); // NOUVEAU : On active SignalR
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Configuration de DbContext avec SQLite
 builder.Services.AddDbContext<AppDbContext>(options =>

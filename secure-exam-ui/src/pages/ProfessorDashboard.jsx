@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import * as signalR from "@microsoft/signalr";
-import ExamForm from "../../components/ExamForm/ExamForm";
 import ExamCalendar from "../../components/ExamCalender/ExamCalendar";
+import ExamRepository from "../../components/QuestionBankBuilder/ExamRepository";
+import ScheduleExamModal from "../../components/ScheduleExamModal/ScheduleExamModal";
 
 export default function ProfessorDashboard() {
   const [alerts, setAlerts] = useState([]);
@@ -10,7 +11,7 @@ export default function ProfessorDashboard() {
   // State to control whether the "Schedule Exam" modal is open or closed
   const [isScheduling, setIsScheduling] = useState(false);
 
-  // NEW: State to force the calendar to refresh when a new exam is added
+  // State to force the calendar to refresh when a new exam is added
   const [calendarKey, setCalendarKey] = useState(0);
 
   useEffect(() => {
@@ -49,10 +50,11 @@ export default function ProfessorDashboard() {
   }, []);
 
   const handleScheduleSubmit = async (formData) => {
-    console.log("Sending exam to backend:", formData);
+    console.log("Sending exam schedule to backend:", formData);
 
     try {
-      const response = await fetch("http://localhost:5162/api/exams", {
+      // UPDATED URL: Now points to the specific /schedule endpoint
+      const response = await fetch("http://localhost:5162/api/exams/schedule", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -66,9 +68,9 @@ export default function ProfessorDashboard() {
         
         // Close the modal and show success
         setIsScheduling(false);
-        alert("Exam scheduled successfully in the database!");
+        alert("Exam scheduled! The backend will now generate random versions for the students.");
         
-        // NEW: Tell the ExamCalendar to fetch the updated list from the database
+        // Tell the ExamCalendar to fetch the updated list
         setCalendarKey(prev => prev + 1);
       } else {
         const errorData = await response.json();
@@ -81,7 +83,7 @@ export default function ProfessorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-secureDark p-8 text-white relative">
+    <div className="min-h-screen bg-[#0d1117] p-8 text-white relative space-y-8">
       <div className="max-w-7xl mx-auto">
         
         {/* HEADER SECTION */}
@@ -113,8 +115,8 @@ export default function ProfessorDashboard() {
         {/* GRID LAYOUT (Alerts on Left, Calendar on Right) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* ALERTS TABLE SECTION (Takes 2 Columns) */}
-          <div className="lg:col-span-2 bg-white/5 border border-gray-700 rounded-xl overflow-hidden shadow-2xl flex flex-col h-full">
+          {/* ALERTS TABLE SECTION */}
+          <div className="lg:col-span-2 bg-[#161b22] border border-gray-700 rounded-xl overflow-hidden shadow-2xl flex flex-col h-full">
             <div className="p-4 bg-gray-800/50 border-b border-gray-700 font-semibold text-gray-300 grid grid-cols-4 gap-4">
               <div>Time</div>
               <div>Session ID</div>
@@ -147,28 +149,39 @@ export default function ProfessorDashboard() {
             </div>
           </div>
 
-          {/* EXAM CALENDAR SECTION (Takes 1 Column) */}
+          {/* EXAM CALENDAR SECTION */}
           <div className="lg:col-span-1">
-             {/* The key prop forces it to re-render when a new exam is scheduled */}
             <ExamCalendar key={calendarKey} />
           </div>
 
         </div>
       </div>
-        
-      {/* The Scheduling Modal */}
+      
+      {/* EXAM REPOSITORY SECTION - Added to the bottom of the dashboard */}
+      <div className="max-w-7xl mx-auto">
+        <ExamRepository />
+      </div>
+
+      {/* THE SCHEDULING MODAL */}
       {isScheduling && (
-        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-gray-800 border border-gray-600 rounded-xl p-8 max-w-md w-full shadow-2xl">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-[#161b22] border border-gray-600 rounded-xl p-8 max-w-2xl w-full shadow-2xl">
             <h2 className="text-2xl font-bold mb-6 text-white border-b border-gray-700 pb-2">
-              Create New Exam
+              📅 Schedule Zero-Trust Exam
             </h2>
-            <ExamForm
-              onSubmit={handleScheduleSubmit}
+            
+            <ScheduleExamModal
+              // Mock data so the dropdown has folders to pick from
+              availableBanks={[
+                { id: 1, course: "Network Security", folderName: "Midterm Chapter 1-3", totalQuestions: 150 },
+                { id: 2, course: "Data Engineering", folderName: "SQL Basics", totalQuestions: 45 }
+              ]}
+              onSchedule={handleScheduleSubmit}
               onCancel={() => setIsScheduling(false)}
             />
           </div>
         </div>
+        
       )}
     </div>
   );

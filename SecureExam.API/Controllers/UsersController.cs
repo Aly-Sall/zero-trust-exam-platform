@@ -2,8 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SecureExam.API.Data;
 using SecureExam.API.Models;
-using SecureExam.API.Services; // Add this!
+using SecureExam.API.Services;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace SecureExam.API.Controllers
 {
@@ -12,9 +16,8 @@ namespace SecureExam.API.Controllers
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly IEmailService _emailService; // Add the email service
+        private readonly IEmailService _emailService;
 
-        // Inject the email service into the controller
         public UsersController(AppDbContext context, IEmailService emailService)
         {
             _context = context;
@@ -28,29 +31,39 @@ namespace SecureExam.API.Controllers
             return Ok(users);
         }
 
-        // 1. MANUAL CREATION UPGRADE
+        // --- 1. BULLETPROOF MANUAL CREATION ---
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] User newUser)
         {
             if (await _context.Users.AnyAsync(u => u.Email == newUser.Email))
                 return BadRequest(new { message = "User with this email already exists." });
 
-            // Hold onto the plain text password to send in the email
-            string plainTextPassword = newUser.PasswordHash;
+            try
+            {
+                // Auto-generate a password if the Admin didn't type one
+                string plainTextPassword = string.IsNullOrWhiteSpace(newUser.PasswordHash) 
+                    ? Guid.NewGuid().ToString().Substring(0, 8) 
+                    : newUser.PasswordHash;
 
-            // HASH THE PASSWORD before saving to the database
-            newUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainTextPassword);
+                // Hash the password
+                newUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainTextPassword);
 
-            _context.Users.Add(newUser);
-            await _context.SaveChangesAsync();
+                // Save to Database FIRST
+                _context.Users.Add(newUser);
+                await _context.SaveChangesAsync();
 
-            // SEND THE EMAIL
-            await _emailService.SendCredentialsEmailAsync(newUser.Email, plainTextPassword, newUser.Role, newUser.Cohort ?? "");
+                // Send Email SECOND
+                await _emailService.SendCredentialsEmailAsync(newUser.Email, plainTextPassword, newUser.Role ?? "Student", newUser.Cohort ?? "");
 
-            return Ok(new { message = "User provisioned successfully!" });
+                return Ok(new { message = "User provisioned successfully!" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Database Error: Could not save the user. " + ex.Message });
+            }
         }
 
-        // DELETE: api/users/{id}
+        // --- 2. DELETE USER ---
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
@@ -62,42 +75,40 @@ namespace SecureExam.API.Controllers
             return Ok(new { message = "User deleted successfully" });
         }
 
-       [HttpPut("{id}")]
-public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedUser)
-{
-    // 1. Find the REAL user in the database first
-    var existingUser = await _context.Users.FindAsync(id);
-    
-    if (existingUser == null) return NotFound();
+        // --- 3. UPDATE USER ---
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedUser)
+        {
+            var existingUser = await _context.Users.FindAsync(id);
+            if (existingUser == null) return NotFound();
 
-    // 2. Only update the fields the Admin is allowed to change
-    existingUser.Email = updatedUser.Email;
-    existingUser.Role = updatedUser.Role;
-    existingUser.Cohort = updatedUser.Cohort;
+            existingUser.Email = updatedUser.Email;
+            existingUser.Role = updatedUser.Role;
+            existingUser.Cohort = updatedUser.Cohort;
 
-    // 3. DO NOT overwrite the PasswordHash if the incoming one is empty
-    // This prevents the "Required" error from breaking the update
-    if (!string.IsNullOrEmpty(updatedUser.PasswordHash) && updatedUser.PasswordHash != "undefined")
-    {
-        existingUser.PasswordHash = updatedUser.PasswordHash;
-    }
+            if (!string.IsNullOrEmpty(updatedUser.PasswordHash) && updatedUser.PasswordHash != "undefined")
+            {
+                existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updatedUser.PasswordHash);
+            }
 
-    try
-    {
-        await _context.SaveChangesAsync();
-        return Ok(new { message = "Update successful" });
-    }
-    catch (DbUpdateException ex)
-    {
-        return BadRequest(new { message = "Database error: " + ex.Message });
-    }
-}
-        // 2. BULK CSV UPGRADE
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Update successful" });
+            }
+            catch (DbUpdateException ex)
+            {
+                return BadRequest(new { message = "Database error: " + ex.Message });
+            }
+        }
+
+        // --- 4. BULLETPROOF BULK UPLOAD ---
         [HttpPost("bulk")]
-        public async Task<IActionResult> UploadBulkUsers([FromForm] IFormFile file)
+        public async Task<IActionResult> UploadBulkUsers(IFormFile file) // REMOVED [FromForm] to fix Swagger!
         {
             if (file == null || file.Length == 0) return BadRequest(new { message = "No file uploaded." });
 
+            var usersToEmail = new List<(string Email, string Password, string Role, string Cohort)>();
             int usersAdded = 0;
 
             using (var stream = new StreamReader(file.OpenReadStream()))
@@ -112,32 +123,45 @@ public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedUser)
                     if (values.Length >= 4)
                     {
                         var email = values[0].Trim();
-                        var plainTextPassword = values[1].Trim(); // The password from the CSV
+                        var plainTextPassword = values[1].Trim();
 
                         if (!await _context.Users.AnyAsync(u => u.Email == email))
                         {
                             var newUser = new User
                             {
                                 Email = email,
-                                // HASH THE CSV PASSWORD instantly
                                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainTextPassword),
                                 Role = values[2].Trim(),
                                 Cohort = values[3].Trim()
                             };
 
                             _context.Users.Add(newUser);
-
-                            // SEND THE EMAIL
-                            await _emailService.SendCredentialsEmailAsync(email, plainTextPassword, newUser.Role, newUser.Cohort ?? "");
-
+                            
+                            // Add to our mailing list to send AFTER the database saves
+                            usersToEmail.Add((email, plainTextPassword, newUser.Role, newUser.Cohort));
                             usersAdded++;
                         }
                     }
                 }
             }
 
-            await _context.SaveChangesAsync();
-            return Ok(new { count = usersAdded, message = "Bulk import successful" });
+            try
+            {
+                // SAVE ALL TO DATABASE FIRST
+                await _context.SaveChangesAsync();
+
+                // FIRE EMAILS ONLY AFTER SUCCESSFUL SAVE
+                foreach (var user in usersToEmail)
+                {
+                    await _emailService.SendCredentialsEmailAsync(user.Email, user.Password, user.Role, user.Cohort);
+                }
+
+                return Ok(new { count = usersAdded, message = "Bulk import successful" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Database Error during bulk upload: " + ex.Message });
+            }
         }
     }
 }

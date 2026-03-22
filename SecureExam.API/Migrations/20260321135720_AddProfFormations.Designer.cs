@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SecureExam.API.Data;
 
@@ -10,9 +11,11 @@ using SecureExam.API.Data;
 namespace SecureExam.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321135720_AddProfFormations")]
+    partial class AddProfFormations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
@@ -54,43 +57,17 @@ namespace SecureExam.API.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Cohort")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CourseName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("Date")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Duration")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("DurationMinutes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ProfessorEmail")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("QuestionBankId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("QuestionsToPull")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("QuestionBankId");
 
                     b.ToTable("Exams");
                 });
@@ -146,52 +123,6 @@ namespace SecureExam.API.Migrations
                     b.ToTable("IntegrityAlerts");
                 });
 
-            modelBuilder.Entity("SecureExam.API.Models.Question", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("CorrectAnswerIndex")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Options")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("QuestionBankId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuestionBankId");
-
-                    b.ToTable("Questions");
-                });
-
-            modelBuilder.Entity("SecureExam.API.Models.QuestionBank", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Course")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FolderName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("QuestionBanks");
-                });
-
             modelBuilder.Entity("SecureExam.API.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -218,6 +149,9 @@ namespace SecureExam.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
                     b.ToTable("Users");
                 });
 
@@ -230,17 +164,6 @@ namespace SecureExam.API.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SecureExam.API.Models.Exam", b =>
-                {
-                    b.HasOne("SecureExam.API.Models.QuestionBank", "QuestionBank")
-                        .WithMany()
-                        .HasForeignKey("QuestionBankId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("QuestionBank");
                 });
 
             modelBuilder.Entity("SecureExam.API.Models.ExamSession", b =>
@@ -265,25 +188,9 @@ namespace SecureExam.API.Migrations
                     b.Navigation("ExamSession");
                 });
 
-            modelBuilder.Entity("SecureExam.API.Models.Question", b =>
-                {
-                    b.HasOne("SecureExam.API.Models.QuestionBank", "QuestionBank")
-                        .WithMany("Questions")
-                        .HasForeignKey("QuestionBankId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("QuestionBank");
-                });
-
             modelBuilder.Entity("SecureExam.API.Models.ExamSession", b =>
                 {
                     b.Navigation("IntegrityAlerts");
-                });
-
-            modelBuilder.Entity("SecureExam.API.Models.QuestionBank", b =>
-                {
-                    b.Navigation("Questions");
                 });
 
             modelBuilder.Entity("SecureExam.API.Models.User", b =>

@@ -46,13 +46,14 @@ namespace SecureExam.API.Controllers
                 return Unauthorized(new { message = "Identifiants incorrects." });
 
             string token = GenerateJwtToken(user);
-            
-            // NEW: We send the Role and Cohort back to React so it can route you instantly!
-            return Ok(new { 
+
+            return Ok(new
+            {
                 token,
                 role = user.Role,
                 email = user.Email,
-                cohort = user.Cohort 
+                cohort = user.Cohort,
+                formations = user.Formations // 🟢 CRITICAL: Added this so the Professor gets their dropdown classes
             });
         }
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 
 namespace SecureExam.API.Models
 {
@@ -16,11 +17,13 @@ namespace SecureExam.API.Models
         [Required]
         public string Role { get; set; } = "Student"; // "Student", "Professor", or "Admin"
 
-        // NEW: The class/group the user belongs to
-        // It is nullable (?) because Professors and Admins usually don't belong to a specific student cohort.
+        // For Students: Which specific class they belong to
         public string? Cohort { get; set; } 
 
-        // Propriétés de navigation (Relations)
+        // 🟢 NEW: For Professors: A list of classes they are authorized to teach
+        public List<string> Formations { get; set; } = new List<string>(); 
+
+        // Navigation Properties (Relations)
         public BaselineSignature? BaselineSignature { get; set; }
         public ICollection<ExamSession> ExamSessions { get; set; } = new List<ExamSession>();
     }

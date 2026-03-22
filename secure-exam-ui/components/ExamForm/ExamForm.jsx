@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 function ExamForm({ onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
-    title: '',
-    date: '',
-    duration: '60',
-    accessCode: '',
+    title: "",
+    date: "",
+    duration: "60",
+    accessCode: "",
   });
 
   const handleChange = (e) => {
@@ -21,7 +21,9 @@ function ExamForm({ onSubmit, onCancel }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 text-left">
       <div>
-        <label className="block text-sm font-medium text-gray-400 mb-1">Exam Title</label>
+        <label className="block text-sm font-medium text-gray-400 mb-1">
+          Exam Title
+        </label>
         <input
           type="text"
           name="title"
@@ -35,7 +37,9 @@ function ExamForm({ onSubmit, onCancel }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-400 mb-1">Date & Time</label>
+          <label className="block text-sm font-medium text-gray-400 mb-1">
+            Date & Time
+          </label>
           <input
             type="datetime-local"
             name="date"
@@ -46,7 +50,9 @@ function ExamForm({ onSubmit, onCancel }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-400 mb-1">Duration (min)</label>
+          <label className="block text-sm font-medium text-gray-400 mb-1">
+            Duration (min)
+          </label>
           <input
             type="number"
             name="duration"
@@ -59,7 +65,9 @@ function ExamForm({ onSubmit, onCancel }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-400 mb-1">Access Code (Zero-Trust Key)</label>
+        <label className="block text-sm font-medium text-gray-400 mb-1">
+          Access Code (Zero-Trust Key)
+        </label>
         <input
           type="text"
           name="accessCode"

@@ -24,14 +24,23 @@ namespace SecureExam.API.Controllers
             _emailService = emailService;
         }
 
+        // --- 1. GET USERS (Fixed to include Formations) ---
         [HttpGet]
         public async Task<IActionResult> GetUsers()
         {
-            var users = await _context.Users.Select(u => new { u.Id, u.Email, u.Role, u.Cohort }).ToListAsync();
+            // 🟢 NEW: Added u.Formations to the Select statement!
+            var users = await _context.Users.Select(u => new { 
+                u.Id, 
+                u.Email, 
+                u.Role, 
+                u.Cohort, 
+                u.Formations 
+            }).ToListAsync();
+            
             return Ok(users);
         }
 
-        // --- 1. BULLETPROOF MANUAL CREATION ---
+        // --- 2. BULLETPROOF MANUAL CREATION ---
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] User newUser)
         {
@@ -40,19 +49,15 @@ namespace SecureExam.API.Controllers
 
             try
             {
-                // Auto-generate a password if the Admin didn't type one
                 string plainTextPassword = string.IsNullOrWhiteSpace(newUser.PasswordHash) 
                     ? Guid.NewGuid().ToString().Substring(0, 8) 
                     : newUser.PasswordHash;
 
-                // Hash the password
                 newUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainTextPassword);
 
-                // Save to Database FIRST
                 _context.Users.Add(newUser);
                 await _context.SaveChangesAsync();
 
-                // Send Email SECOND
                 await _emailService.SendCredentialsEmailAsync(newUser.Email, plainTextPassword, newUser.Role ?? "Student", newUser.Cohort ?? "");
 
                 return Ok(new { message = "User provisioned successfully!" });
@@ -63,7 +68,7 @@ namespace SecureExam.API.Controllers
             }
         }
 
-        // --- 2. DELETE USER ---
+        // --- 3. DELETE USER ---
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
@@ -75,7 +80,7 @@ namespace SecureExam.API.Controllers
             return Ok(new { message = "User deleted successfully" });
         }
 
-        // --- 3. UPDATE USER ---
+        // --- 4. UPDATE USER (Fixed to map Formations) ---
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedUser)
         {
@@ -85,6 +90,9 @@ namespace SecureExam.API.Controllers
             existingUser.Email = updatedUser.Email;
             existingUser.Role = updatedUser.Role;
             existingUser.Cohort = updatedUser.Cohort;
+            
+            // 🟢 NEW: Tell the database to actually save the Formations array!
+            existingUser.Formations = updatedUser.Formations;
 
             if (!string.IsNullOrEmpty(updatedUser.PasswordHash) && updatedUser.PasswordHash != "undefined")
             {
@@ -102,9 +110,9 @@ namespace SecureExam.API.Controllers
             }
         }
 
-        // --- 4. BULLETPROOF BULK UPLOAD ---
+        // --- 5. BULLETPROOF BULK UPLOAD ---
         [HttpPost("bulk")]
-        public async Task<IActionResult> UploadBulkUsers(IFormFile file) // REMOVED [FromForm] to fix Swagger!
+        public async Task<IActionResult> UploadBulkUsers(IFormFile file) 
         {
             if (file == null || file.Length == 0) return BadRequest(new { message = "No file uploaded." });
 
@@ -136,8 +144,6 @@ namespace SecureExam.API.Controllers
                             };
 
                             _context.Users.Add(newUser);
-                            
-                            // Add to our mailing list to send AFTER the database saves
                             usersToEmail.Add((email, plainTextPassword, newUser.Role, newUser.Cohort));
                             usersAdded++;
                         }
@@ -147,10 +153,8 @@ namespace SecureExam.API.Controllers
 
             try
             {
-                // SAVE ALL TO DATABASE FIRST
                 await _context.SaveChangesAsync();
 
-                // FIRE EMAILS ONLY AFTER SUCCESSFUL SAVE
                 foreach (var user in usersToEmail)
                 {
                     await _emailService.SendCredentialsEmailAsync(user.Email, user.Password, user.Role, user.Cohort);

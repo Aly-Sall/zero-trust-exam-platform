@@ -9,7 +9,8 @@ export default function AdminDashboard() {
     email: "", 
     passwordHash: "", 
     role: "Student",
-    cohort: "Cybersecurity-MSc" 
+    cohort: "Cybersecurity-MSc",
+    formations: "" // NEW: Holds the comma-separated string before submission
   });
 
   // 1. Fetch Users
@@ -32,16 +33,29 @@ export default function AdminDashboard() {
   // 2. Manual Provisioning (Add User)
   const handleManualSubmit = async (e) => {
     e.preventDefault();
+    
+    // NEW: Prepare the payload dynamically based on the role
+    const payload = {
+      ...formData,
+      // If Professor, split the string into an array. Otherwise, send an empty array.
+      formations: formData.role === "Professor" 
+        ? formData.formations.split(",").map(f => f.trim()).filter(f => f !== "") 
+        : [],
+      // If Student, send the cohort. Otherwise, leave it null/empty.
+      cohort: formData.role === "Student" ? formData.cohort : ""
+    };
+
     try {
       const response = await fetch("http://localhost:5162/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         alert("User provisioned successfully! Credentials emailed.");
-        setFormData({ ...formData, email: "", passwordHash: "" }); 
+        // Reset form but keep the default role/cohort
+        setFormData({ ...formData, email: "", passwordHash: "", formations: "" }); 
         fetchUsers(); 
       } else {
         const error = await response.json();
@@ -52,36 +66,43 @@ export default function AdminDashboard() {
     }
   };
 
-  // 3. Edit User (Update) - FIXED WITH EMPTY STRING
- const handleUpdate = async (e) => {
-  e.preventDefault();
-  
-  try {
-    const res = await fetch(`http://localhost:5162/api/users/${editingUser.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: editingUser.id,
-        email: editingUser.email,
-        role: editingUser.role,
-        cohort: editingUser.cohort,
-        // The empty string tricks the ASP.NET bouncer!
-        passwordHash: "" 
-      }),
-    });
+  // 3. Edit User (Update)
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    
+    const payload = {
+      id: editingUser.id,
+      email: editingUser.email,
+      role: editingUser.role,
+      passwordHash: editingUser.newPassword || "", 
+      // Handle the dynamic fields during edit
+      cohort: editingUser.role === "Student" ? editingUser.cohort : "",
+      formations: editingUser.role === "Professor" 
+        ? (typeof editingUser.formations === 'string' 
+            ? editingUser.formations.split(",").map(f => f.trim()) 
+            : editingUser.formations)
+        : []
+    };
 
-    if (res.ok) {
-      setEditingUser(null);
-      fetchUsers();
-      console.log("Update successful!");
-    } else {
-      const errorData = await res.json();
-      alert("Error: " + JSON.stringify(errorData.errors || errorData.message));
+    try {
+      const res = await fetch(`http://localhost:5162/api/users/${editingUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setEditingUser(null);
+        fetchUsers();
+        console.log("Update successful!");
+      } else {
+        const errorData = await res.json();
+        alert("Error: " + JSON.stringify(errorData.errors || errorData.message));
+      }
+    } catch (err) {
+      console.error("Connection Error:", err);
     }
-  } catch (err) {
-    console.error("Connection Error:", err);
-  }
-};
+  };
 
   // 4. Delete User
   const deleteUser = async (id) => {
@@ -154,14 +175,22 @@ export default function AdminDashboard() {
               <form onSubmit={handleManualSubmit} className="space-y-4">
                 <input type="email" placeholder="Email" required className="w-full bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
                 <input type="text" placeholder="Temp Password" required className="w-full bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.passwordHash} onChange={(e) => setFormData({...formData, passwordHash: e.target.value})} />
+                
                 <div className="flex gap-2">
                   <select className="flex-1 bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
                     <option value="Student">Student</option>
                     <option value="Professor">Professor</option>
                     <option value="Admin">Admin</option>
                   </select>
-                  <input type="text" placeholder="Cohort" className="flex-1 bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.cohort} onChange={(e) => setFormData({...formData, cohort: e.target.value})} />
+                  
+                  {/* NEW: Conditional Input Rendering */}
+                  {formData.role === "Student" ? (
+                    <input type="text" placeholder="Cohort (e.g. Cyber-MSc)" className="flex-1 bg-[#0d1117] border border-gray-700 rounded p-2" value={formData.cohort} onChange={(e) => setFormData({...formData, cohort: e.target.value})} />
+                  ) : formData.role === "Professor" ? (
+                    <input type="text" placeholder="Formations (IT-BSc, Cyber-MSc)" className="flex-1 bg-[#0d1117] border border-blue-500 rounded p-2" value={formData.formations} onChange={(e) => setFormData({...formData, formations: e.target.value})} />
+                  ) : null}
                 </div>
+
                 <button type="submit" className="w-full bg-green-600 hover:bg-green-500 py-2 rounded font-bold">Execute Provisioning</button>
               </form>
             </div>
@@ -175,7 +204,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="text-gray-500 text-sm border-b border-gray-800">
                     <th className="p-3">Email</th>
-                    <th className="p-3">Cohort</th>
+                    <th className="p-3">Cohort / Formations</th>
                     <th className="p-3">Clearance</th>
                     <th className="p-3 text-right">Actions</th>
                   </tr>
@@ -191,14 +220,19 @@ export default function AdminDashboard() {
                     users.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-800/40">
                         <td className="p-3 text-sm">{user.email}</td>
-                        <td className="p-3 text-sm text-gray-400">{user.cohort || "N/A"}</td>
+                        {/* NEW: Display Formations if Professor, Cohort if Student */}
+                        <td className="p-3 text-sm text-gray-400">
+                          {user.role === 'Professor' && user.formations?.length > 0 
+                            ? <span className="text-blue-400">{user.formations.join(", ")}</span>
+                            : user.cohort || "N/A"}
+                        </td>
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${user.role === 'Admin' ? 'border-red-500 text-red-500' : user.role === 'Professor' ? 'border-blue-500 text-blue-500' : 'border-green-500 text-green-500'}`}>
                             {user.role}
                           </span>
                         </td>
                         <td className="p-3 text-right space-x-3">
-                          <button onClick={() => setEditingUser(user)} className="text-blue-400 hover:underline text-sm">Edit</button>
+                          <button onClick={() => setEditingUser({...user, formations: user.formations?.join(", ") || ""})} className="text-blue-400 hover:underline text-sm">Edit</button>
                           <button onClick={() => deleteUser(user.id)} className="text-red-400 hover:underline text-sm">Delete</button>
                         </td>
                       </tr>
@@ -231,14 +265,26 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Classification (Cohort)</label>
-                <input 
-                  className="w-full bg-[#0d1117] border border-gray-800 p-2.5 rounded mt-1 focus:border-blue-500 outline-none transition-all" 
-                  value={editingUser.cohort || ""} 
-                  onChange={(e) => setEditingUser({...editingUser, cohort: e.target.value})} 
-                />
-              </div>
+              {/* NEW: Conditional Edit Inputs */}
+              {editingUser.role === "Student" ? (
+                <div>
+                  <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Classification (Cohort)</label>
+                  <input 
+                    className="w-full bg-[#0d1117] border border-gray-800 p-2.5 rounded mt-1 focus:border-blue-500 outline-none transition-all" 
+                    value={editingUser.cohort || ""} 
+                    onChange={(e) => setEditingUser({...editingUser, cohort: e.target.value})} 
+                  />
+                </div>
+              ) : editingUser.role === "Professor" ? (
+                <div>
+                  <label className="text-[10px] text-blue-400 uppercase font-black tracking-widest">Assigned Formations (Comma Separated)</label>
+                  <input 
+                    className="w-full bg-[#0d1117] border border-blue-900/50 p-2.5 rounded mt-1 focus:border-blue-500 outline-none transition-all" 
+                    value={editingUser.formations || ""} 
+                    onChange={(e) => setEditingUser({...editingUser, formations: e.target.value})} 
+                  />
+                </div>
+              ) : null}
 
               {/* PASSWORD OVERWRITE SECTION */}
               <div className="pt-2">
@@ -258,17 +304,10 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex gap-4 pt-6">
-                <button 
-                  type="submit" 
-                  className="flex-1 bg-blue-600 hover:bg-blue-500 py-2.5 rounded font-bold shadow-lg transition-all active:scale-95"
-                >
+                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 py-2.5 rounded font-bold shadow-lg transition-all active:scale-95">
                   Save Changes
                 </button>
-                <button 
-                  type="button" 
-                  onClick={() => setEditingUser(null)} 
-                  className="flex-1 bg-gray-800 hover:bg-gray-700 py-2.5 rounded font-bold transition-all"
-                >
+                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 bg-gray-800 hover:bg-gray-700 py-2.5 rounded font-bold transition-all">
                   Cancel
                 </button>
               </div>
